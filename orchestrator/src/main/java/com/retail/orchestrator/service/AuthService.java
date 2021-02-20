@@ -14,7 +14,7 @@ public class AuthService {
   @Autowired
   private JwtTokenUtil jwtTokenUtil;
 
-  public boolean isValidUser(String bearerToken, String userId) {
+  public boolean isValidUser(String bearerToken, String userId){
     if (null == bearerToken || bearerToken.length() < 8) {
       return false;
     }

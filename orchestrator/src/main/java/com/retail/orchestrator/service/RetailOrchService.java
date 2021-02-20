@@ -1,7 +1,11 @@
 package com.retail.orchestrator.service;
 
+import static com.retail.common.util.ErrorResponseUtil.prepareBadRequestResponse;
+import static com.retail.common.util.ErrorResponseUtil.prepareServerErrorResponse;
+import static com.retail.common.util.ErrorResponseUtil.prepareUnauthorizedServiceResponse;
+
+import com.retail.common.constants.RestConstants;
 import com.retail.common.model.CustomHttpResponse;
-import com.retail.common.model.Error;
 import com.retail.common.model.ItemRequest;
 import com.retail.common.model.ItemResponse;
 import com.retail.common.model.PaymentRequest;
@@ -13,17 +17,15 @@ import com.retail.common.util.JsonOutputFormatter;
 import com.retail.common.util.ObjectMapperUtils;
 import com.retail.orchestrator.config.RestClientProperties;
 import com.retail.orchestrator.model.MROrder;
-import com.retail.orchestrator.model.RestConstants;
 import com.retail.orchestrator.repository.OrderRepository;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -34,19 +36,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class RetailOrchService extends RestService {
 
-  Logger LOGGER = LoggerFactory.getLogger(RetailOrchService.class);
+  private Logger LOGGER = LoggerFactory.getLogger(RetailOrchService.class);
 
-  @Autowired
+
   private AuthService authService;
 
-  @Autowired
   private OrderRepository orderRepository;
 
   private RestClientProperties restClientProperties;
 
   @Autowired
-  public RetailOrchService(RestClientProperties properties) {
+  public RetailOrchService(RestClientProperties properties, AuthService authService,
+      OrderRepository orderRepository) {
     this.restClientProperties = properties;
+    this.authService = authService;
+    this.orderRepository = orderRepository;
   }
 
   public ServiceResponse<ItemResponse> getItemDetails(ServiceRequest<ItemRequest> itemRequest,
@@ -54,33 +58,33 @@ public class RetailOrchService extends RestService {
     String requestId = UUID.randomUUID().toString();
     ServiceResponse<ItemResponse> serviceResponse = new ServiceResponse<>();
     serviceResponse.setRequestId(requestId);
-    ItemResponse itemResponse = null;
-
-    boolean isAuthorized = authService.isValidUser(bearerToken, userId);
-    List<Error> errors = null;
-    if (!isAuthorized) {
-      return getUnauthorizedServiceResponse(serviceResponse);
-    }
     try {
+      boolean isAuthorized = authService.isValidUser(bearerToken, userId);
+      if (!isAuthorized) {
+        prepareUnauthorizedServiceResponse(serviceResponse);
+        return serviceResponse;
+      }
+
       Map<String, String> headerMap = new HashMap<>();
       headerMap.put("requestId", requestId);
       CustomHttpResponse customHttpResponse =
           post(restClientProperties.getCatalogUrl() + RestConstants.ITEM_URI, headerMap,
-              JsonOutputFormatter.generateJson(itemRequest), requestId, RestConstants.EXTERNAL_SERVICE_CATALOG);
+              JsonOutputFormatter.generateJson(itemRequest), requestId,
+              RestConstants.EXTERNAL_SERVICE_CATALOG);
       serviceResponse = ObjectMapperUtils
           .convertStringToObject(customHttpResponse.getHttpResponseEntity(),
               ServiceResponse.class);
       serviceResponse.setPayload(serviceResponse.getPayload());
       serviceResponse.setStatus(serviceResponse.getStatus());
-    } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
-      return getUnauthorizedServiceResponse(serviceResponse);
+    } catch (JwtException e) {
+      LOGGER.error("OrchestratorService::Token validation Error in get Item details: ", e);
+      prepareUnauthorizedServiceResponse(serviceResponse);
     } catch (IOException | URISyntaxException e) {
-      LOGGER.error("OrchestratorService::Error in get Item details: ", e);
-      errors = new ArrayList<>();
-      Error error = new Error(RestConstants.ERR_404, e.getMessage());
-      errors.add(error);
-      serviceResponse.setErrors(errors);
-      serviceResponse.setStatus(RestConstants.ERR_404);
+      LOGGER.error("OrchestratorService::External Service Error in get Item details: ", e);
+      prepareBadRequestResponse(serviceResponse, e.getMessage());
+    } catch (Exception e) {
+      LOGGER.error("OrchestratorService:: Internal Server Error in get Item details: ", e);
+      prepareServerErrorResponse(serviceResponse);
     }
     return serviceResponse;
   }
@@ -93,12 +97,17 @@ public class RetailOrchService extends RestService {
     try {
       boolean isAuthorized = authService.isValidUser(bearerToken, userId);
       if (!isAuthorized) {
-        return getUnauthorizedServiceResponse(serviceResponse);
+        prepareUnauthorizedServiceResponse(serviceResponse);
+        return serviceResponse;
       }
       MROrder order = orderRepository.save(checkoutRequest.getPayload());
       serviceResponse.setPayload(order);
     } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
-      return getUnauthorizedServiceResponse(serviceResponse);
+      LOGGER.error("OrchestratorService::Token validation Error in checkout and save order: ", e);
+      prepareUnauthorizedServiceResponse(serviceResponse);
+    } catch (Exception e) {
+      LOGGER.error("OrchestratorService:: Internal Server Error in checkout and save order: ", e);
+      prepareServerErrorResponse(serviceResponse);
     }
     return serviceResponse;
   }
@@ -108,12 +117,13 @@ public class RetailOrchService extends RestService {
     String requestId = UUID.randomUUID().toString();
     ServiceResponse<PaymentResponse> serviceResponse = new ServiceResponse<>();
     serviceResponse.setRequestId(requestId);
-
-    boolean isAuthorized = authService.isValidUser(bearerToken, userId);
-    if (!isAuthorized) {
-      return getUnauthorizedServiceResponse(serviceResponse);
-    }
     try {
+      boolean isAuthorized = authService.isValidUser(bearerToken, userId);
+      if (!isAuthorized) {
+        prepareUnauthorizedServiceResponse(serviceResponse);
+        return serviceResponse;
+      }
+
       Map<String, String> headerMap = new HashMap<>();
       headerMap.put("requestId", requestId);
       CustomHttpResponse customHttpResponse =
@@ -126,14 +136,14 @@ public class RetailOrchService extends RestService {
       serviceResponse.setPayload(serviceResponse.getPayload());
       serviceResponse.setStatus(serviceResponse.getStatus());
     } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
-      return getUnauthorizedServiceResponse(serviceResponse);
+      LOGGER.error("OrchestratorService::Token validation Error in create payment: ", e);
+      prepareUnauthorizedServiceResponse(serviceResponse);
     } catch (IOException | URISyntaxException e) {
-      LOGGER.error("OrchestratorService::Error in create Order : ", e);
-      List<Error> errors = new ArrayList<>();
-      Error error = new Error(RestConstants.ERR_404, e.getMessage());
-      errors.add(error);
-      serviceResponse.setErrors(errors);
-      serviceResponse.setStatus(RestConstants.ERR_404);
+      LOGGER.error("OrchestratorService::External Service Error in create payment: ", e);
+      prepareBadRequestResponse(serviceResponse, e.getMessage());
+    } catch (Exception e) {
+      LOGGER.error("OrchestratorService:: Internal Server Error in create payment: ", e);
+      prepareServerErrorResponse(serviceResponse);
     }
     return serviceResponse;
   }
@@ -144,13 +154,13 @@ public class RetailOrchService extends RestService {
     String requestId = UUID.randomUUID().toString();
     ServiceResponse<PaymentResponse> serviceResponse = new ServiceResponse<>();
     serviceResponse.setRequestId(requestId);
-
-    boolean isAuthorized = authService.isValidUser(bearerToken, userId);
-    if (!isAuthorized) {
-      return getUnauthorizedServiceResponse(serviceResponse);
-    }
-
     try {
+      boolean isAuthorized = authService.isValidUser(bearerToken, userId);
+      if (!isAuthorized) {
+        prepareUnauthorizedServiceResponse(serviceResponse);
+        return serviceResponse;
+      }
+
       Map<String, String> headerMap = new HashMap<>();
       headerMap.put("requestId", requestId);
       CustomHttpResponse customHttpResponse =
@@ -163,25 +173,16 @@ public class RetailOrchService extends RestService {
       serviceResponse.setPayload(serviceResponse.getPayload());
       serviceResponse.setStatus(serviceResponse.getStatus());
     } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
-      return getUnauthorizedServiceResponse(serviceResponse);
+      LOGGER.error("OrchestratorService::Token validation Error in complete payment: ", e);
+      prepareUnauthorizedServiceResponse(serviceResponse);
     } catch (IOException | URISyntaxException e) {
-      LOGGER.error("OrchestratorService::Error in Capture payment : ", e);
-      List<Error> errors = new ArrayList<>();
-      Error error = new Error(RestConstants.ERR_404, e.getMessage());
-      errors.add(error);
-      serviceResponse.setErrors(errors);
-      serviceResponse.setStatus(RestConstants.ERR_404);
+      LOGGER.error("OrchestratorService::External Service Error incomplete payment: ", e);
+      prepareBadRequestResponse(serviceResponse, e.getMessage());
+    } catch (Exception e) {
+      LOGGER.error("OrchestratorService:: Internal Server Error in complete payment: ", e);
+      prepareServerErrorResponse(serviceResponse);
     }
     return serviceResponse;
   }
 
-  private ServiceResponse getUnauthorizedServiceResponse(
-      ServiceResponse serviceResponse) {
-    serviceResponse.setStatus(RestConstants.ERR_401);
-    List<Error> errors = new ArrayList<>();
-    Error error = new Error(RestConstants.ERR_401, RestConstants.UNAUTHORIZED);
-    errors.add(error);
-    serviceResponse.setErrors(errors);
-    return serviceResponse;
-  }
 }
