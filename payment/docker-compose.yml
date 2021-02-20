@@ -1,0 +1,23 @@
+version: '3.7'
+
+services:
+  app:
+    build: .
+    image: payment
+    ports:
+      - 8081:8081
+
+  mysql:
+    restart: always
+    image: mysql:5.6
+    container_name: mysql_local
+    hostname: mysql_local
+    environment:
+      MYSQL_PASSWORD: myretail_dev
+      MYSQL_USER: myretail_dev
+      MYSQL_DATABASE: myretail
+      MYSQL_ROOT_PASSWORD: canthack
+    ports:
+      - "3306:3306"
+    expose:
+      - "3306"
