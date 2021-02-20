@@ -11,8 +11,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 
 
 @ConfigurationPropertiesScan("com.retail.catalogue.config")
-@EnableMongoRepositories
-@SpringBootApplication(exclude={MongoAutoConfiguration.class})
+@SpringBootApplication
 public class CatalogueApplication extends SpringBootServletInitializer {
 
   public static void main(String[] args) {

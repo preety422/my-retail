@@ -1,5 +1,6 @@
 package com.retail.profile.config;
 
+import com.retail.common.util.JwtTokenUtil;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -26,6 +27,11 @@ public class SpringConfig {
   @ConfigurationProperties(prefix = "spring")
   public AppProperties appProperties() {
     return new AppProperties();
+  }
+
+  @Bean
+  public JwtTokenUtil jwtTokenUtil(){
+    return new JwtTokenUtil();
   }
 
 }

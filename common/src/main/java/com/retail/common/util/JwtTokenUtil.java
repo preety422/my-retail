@@ -12,12 +12,11 @@ import java.util.function.Function;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-@Component
 public class JwtTokenUtil implements Serializable {
 
   private static final long serialVersionUID = -9005314065399056094L;
 
-  public static final long JWT_TOKEN_VALIDITY = 60 * 60;
+  public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
 
   @Value("${jwt.secret}")
   private String secret;

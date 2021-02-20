@@ -9,5 +9,6 @@ import lombok.Setter;
 public class ItemRequest {
 
   private String barcode;
+  private String store;
   private BigDecimal quantity;
 }

@@ -2,6 +2,7 @@ package com.retail.orchestrator.service;
 
 import com.retail.common.model.CustomHttpResponse;
 import com.retail.common.model.Error;
+import com.retail.common.model.ItemRequest;
 import com.retail.common.model.ItemResponse;
 import com.retail.common.model.PaymentRequest;
 import com.retail.common.model.PaymentResponse;
@@ -48,7 +49,7 @@ public class RetailOrchService extends RestService {
     this.restClientProperties = properties;
   }
 
-  public ServiceResponse<ItemResponse> getItemDetails(String store, String barcode,
+  public ServiceResponse<ItemResponse> getItemDetails(ServiceRequest<ItemRequest> itemRequest,
       String bearerToken, String userId) {
     String requestId = UUID.randomUUID().toString();
     ServiceResponse<ItemResponse> serviceResponse = new ServiceResponse<>();
@@ -64,13 +65,13 @@ public class RetailOrchService extends RestService {
       Map<String, String> headerMap = new HashMap<>();
       headerMap.put("requestId", requestId);
       CustomHttpResponse customHttpResponse =
-          get(restClientProperties.getCatalogUrl() + RestConstants.ITEM_URI, headerMap,
-              new HashMap<>(), requestId, RestConstants.EXTERNAL_SERVICE_CATALOG);
-      itemResponse = ObjectMapperUtils
+          post(restClientProperties.getCatalogUrl() + RestConstants.ITEM_URI, headerMap,
+              JsonOutputFormatter.generateJson(itemRequest), requestId, RestConstants.EXTERNAL_SERVICE_CATALOG);
+      serviceResponse = ObjectMapperUtils
           .convertStringToObject(customHttpResponse.getHttpResponseEntity(),
-              ItemResponse.class);
-      serviceResponse.setPayload(itemResponse);
-      serviceResponse.setStatus(RestConstants.OK_200);
+              ServiceResponse.class);
+      serviceResponse.setPayload(serviceResponse.getPayload());
+      serviceResponse.setStatus(serviceResponse.getStatus());
     } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
       return getUnauthorizedServiceResponse(serviceResponse);
     } catch (IOException | URISyntaxException e) {
@@ -112,20 +113,18 @@ public class RetailOrchService extends RestService {
     if (!isAuthorized) {
       return getUnauthorizedServiceResponse(serviceResponse);
     }
-
-    PaymentResponse paymentResponse = null;
     try {
       Map<String, String> headerMap = new HashMap<>();
       headerMap.put("requestId", requestId);
       CustomHttpResponse customHttpResponse =
           post(restClientProperties.getPaymentUrl() + RestConstants.CREATE_PAYMENT_URI, headerMap,
-              JsonOutputFormatter.generateJson(paymentRequest.getPayload()), requestId,
+              JsonOutputFormatter.generateJson(paymentRequest), requestId,
               RestConstants.EXTERNAL_SERVICE_PAYMENT);
-      paymentResponse = ObjectMapperUtils
+      serviceResponse = ObjectMapperUtils
           .convertStringToObject(customHttpResponse.getHttpResponseEntity(),
-              PaymentResponse.class);
-      serviceResponse.setPayload(paymentResponse);
-      serviceResponse.setStatus(RestConstants.OK_200);
+              ServiceResponse.class);
+      serviceResponse.setPayload(serviceResponse.getPayload());
+      serviceResponse.setStatus(serviceResponse.getStatus());
     } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
       return getUnauthorizedServiceResponse(serviceResponse);
     } catch (IOException | URISyntaxException e) {
@@ -151,19 +150,18 @@ public class RetailOrchService extends RestService {
       return getUnauthorizedServiceResponse(serviceResponse);
     }
 
-    PaymentResponse paymentResponse = null;
     try {
       Map<String, String> headerMap = new HashMap<>();
       headerMap.put("requestId", requestId);
       CustomHttpResponse customHttpResponse =
           post(restClientProperties.getPaymentUrl() + RestConstants.COMPLETE_PAYMENT_URI, headerMap,
-              JsonOutputFormatter.generateJson(paymentRequest.getPayload()), requestId,
+              JsonOutputFormatter.generateJson(paymentRequest), requestId,
               RestConstants.EXTERNAL_SERVICE_PAYMENT);
-      paymentResponse = ObjectMapperUtils
+      serviceResponse = ObjectMapperUtils
           .convertStringToObject(customHttpResponse.getHttpResponseEntity(),
-              PaymentResponse.class);
-      serviceResponse.setPayload(paymentResponse);
-      serviceResponse.setStatus(RestConstants.OK_200);
+              ServiceResponse.class);
+      serviceResponse.setPayload(serviceResponse.getPayload());
+      serviceResponse.setStatus(serviceResponse.getStatus());
     } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
       return getUnauthorizedServiceResponse(serviceResponse);
     } catch (IOException | URISyntaxException e) {

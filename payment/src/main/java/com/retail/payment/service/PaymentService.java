@@ -103,6 +103,10 @@ public class PaymentService {
     MRPayment mrPayment = new MRPayment();
     try {
       PaymentRequest request = paymentRequest.getPayload();
+      MRPayment mrPaymentExist= paymentRepository.findMRPaymentByReceiptId(request.getReceiptId());
+      if(null != mrPaymentExist) {
+        throw new DuplicatePaymentException("Order already created!");
+      }
       mrPayment.setAmount(BigDecimal.valueOf(request.getAmount()));
       mrPayment.setPaymentMethod(request.getPaymentMethod());
       mrPayment.setReceiptId(request.getReceiptId());
@@ -129,7 +133,7 @@ public class PaymentService {
       mrPayment.setOrderId(order.get("id"));
       serviceResponse.setPayload(paymentResponse);
       serviceResponse.setStatus("200");
-    } catch (RazorpayException e) {
+    } catch (RazorpayException | DuplicatePaymentException e) {
       LOGGER.error("Error in Payment: ", e);
       errors = new ArrayList<>();
       Error error = new Error("400", e.getMessage());

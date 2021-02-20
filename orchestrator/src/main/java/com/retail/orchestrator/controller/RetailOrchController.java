@@ -1,5 +1,6 @@
 package com.retail.orchestrator.controller;
 
+import com.retail.common.model.ItemRequest;
 import com.retail.common.model.ItemResponse;
 import com.retail.common.model.PaymentRequest;
 import com.retail.common.model.PaymentResponse;
@@ -32,16 +33,15 @@ public class RetailOrchController {
   @Autowired
   private RetailOrchService retailOrchService;
 
-  @GetMapping(value = "/item/{store}/{barcode}", produces = "application/json")
+  @PostMapping(value = "/item", produces = "application/json")
   @ResponseBody
-  public ServiceResponse<ItemResponse> getItem(@PathVariable String store,
-      @PathVariable String barcode,
+  public ServiceResponse<ItemResponse> getItem(@Valid @RequestBody ServiceRequest<ItemRequest> itemRequest,
       @RequestHeader("authorization") String authorization,
       @RequestHeader("user") String user) {
     long startTime = System.currentTimeMillis();
 
     ServiceResponse<ItemResponse> itemResponse = retailOrchService
-        .getItemDetails(store, barcode, authorization, user);
+        .getItemDetails(itemRequest, authorization, user);
 
     LOGGER.info("Get Item API response time: ", System.currentTimeMillis() - startTime);
     return itemResponse;
